@@ -38,27 +38,28 @@ class DemoActivity : AppCompatActivity() {
     private var audioRecord: AudioRecord? = null
     private var currentStyleIndex = 0
 
-    private val renderers: Array<Array<IRenderer>> by lazy {
-        val mikuGreen = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#00F5D4")
-            strokeWidth = 10f
+    private fun createPaint(color: String, stroke: Float): Paint {
+        return Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = Color.parseColor(color)
+            strokeWidth = stroke
         }
-
-        val hudGreen = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#7CFFCB")
-            strokeWidth = 8f
-        }
-
-        arrayOf(
-            arrayOf(ColumnarType1Renderer(mikuGreen)),
-            arrayOf(CircleRenderer(hudGreen, false)),
-            arrayOf(CircleRenderer(mikuGreen, true)),
-            arrayOf(
-                ColumnarType1Renderer(mikuGreen),
-                CircleRenderer(hudGreen, true)
-            )
-        )
     }
+
+    private val renderers: Array<Array<IRenderer>> = arrayOf<Array<IRenderer>>(
+        arrayOf<IRenderer>(
+            ColumnarType1Renderer(createPaint("#00F5D4", 10f))
+        ),
+        arrayOf<IRenderer>(
+            CircleRenderer(createPaint("#7CFFCB", 8f), false)
+        ),
+        arrayOf<IRenderer>(
+            CircleRenderer(createPaint("#00F5D4", 10f), true)
+        ),
+        arrayOf<IRenderer>(
+            ColumnarType1Renderer(createPaint("#00F5D4", 10f)),
+            CircleRenderer(createPaint("#7CFFCB", 8f), true)
+        )
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,7 +100,8 @@ class DemoActivity : AppCompatActivity() {
     }
 
     private fun ensurePermissionThenStart() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+        if (
+            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
         ) {
             ActivityCompat.requestPermissions(
@@ -130,7 +132,13 @@ class DemoActivity : AppCompatActivity() {
         )
 
         val record = audioRecord ?: return
-        record.startRecording()
+
+        try {
+            record.startRecording()
+        } catch (e: Exception) {
+            Toast.makeText(this, "麦克风启动失败", Toast.LENGTH_LONG).show()
+            return
+        }
 
         val converter: AbsAudioDataConverter =
             AudioDataConverterFactory.getConverterByAudioRecord(record)
@@ -141,11 +149,17 @@ class DemoActivity : AppCompatActivity() {
             init(object : NierVisualizerManager.NVDataSource {
                 private val buffer = ByteArray(512)
 
-                override fun getDataSamplingInterval(): Long = 0L
+                override fun getDataSamplingInterval(): Long {
+                    return 16L
+                }
 
-                override fun getDataLength(): Int = buffer.size
+                override fun getDataLength(): Int {
+                    return buffer.size
+                }
 
-                override fun fetchFftData(): ByteArray? = null
+                override fun fetchFftData(): ByteArray? {
+                    return null
+                }
 
                 override fun fetchWaveData(): ByteArray? {
                     converter.convertWaveDataTo(buffer)
@@ -207,6 +221,7 @@ class DemoActivity : AppCompatActivity() {
             }
             release()
         }
+
         audioRecord = null
     }
 
@@ -218,7 +233,10 @@ class DemoActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
         if (requestCode == REQUEST_CODE_AUDIO_PERMISSION) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            if (
+                grantResults.isNotEmpty()
+                && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            ) {
                 startMicVisualizer()
             } else {
                 Toast.makeText(this, "需要麦克风权限才能显示音乐可视化", Toast.LENGTH_LONG).show()
